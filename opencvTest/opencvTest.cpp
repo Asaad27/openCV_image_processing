@@ -1,6 +1,5 @@
 
 #include<opencv2/opencv.hpp>
-//#include <opencv2/highgui/highgui.hpp>
 #include<iostream>
 #include <vector>
 
@@ -147,7 +146,6 @@ Mat img_create(const vector<vector<int>> &matrix, bool kernel)
 		}
 	}
 
-	//show_pixels_intensity_one_channel(img);
 
 	return img;
 }
@@ -179,12 +177,12 @@ float contrast_one_channel(const Mat& img)
 }
 
 //BORDER_REPLICATE pour refaire, BORDER_CONSTAT ajoute des 0
-Mat linear_filter(const Mat &img, const Mat &kernel)
+Mat linear_filter(const Mat& img, const Mat& kernel, BorderTypes border)
 {
 	Mat res;
 	img.copyTo(res);
 
-	filter2D(img, res, -1, kernel, Point(-1, -1), 0, BORDER_CONSTANT);
+	filter2D(img, res, -1, kernel, Point(-1, -1), 0, border);
 
 	//show_pixels_intensity_one_channel(res);
 
@@ -261,37 +259,47 @@ int main()
 		{100, 200, 200, 200, 200}
 	};
 
+	vector<vector<int>> matrix2 = {
+		{1,2, 3},
+		{4, 5, 6},
+		{7, 8, 9}
+	};
+	
+	vector<vector<int>> matrix3= {
+		{1, 1, 1, 5},
+		{1, 1, 5, 5},
+		{1, 5, 5, 8},
+		{5, 5, 8, 10}
+	};
+
 	vector<vector<int>> kernel = {
 		{-1,-2, -1},
 		{0, 0, 0},
 		{1, 2, 1}
 	};
 
-	vector<vector<int>> matrix2 = {
-		{1,2, 3},
-		{4, 5, 6},
-		{7, 8, 9}
+	vector<vector<int>> kernel2 = {
+		{1, 1, 1},
+		{1, 1, 1},
+		{1, 1, 1}
 	};
 
-	const auto img = img_create(matrix, false);
-	//const auto ker = img_create(kernel, false);
+	
 
-	const auto ker = img_create(kernel, true);
+	const auto img = img_create(matrix3, false);
+	const auto ker = img_create(kernel2, true);
 	
 	/*cout << luminance_one_channel(img) << endl;
 	cout << contrast_one_channel(img) << endl;*/
 
-	const auto filtered_img = linear_filter(img, ker);
+	const auto filtered_img = linear_filter(img, ker, BORDER_CONSTANT);
 
 	cout << "\nimg ============= " << endl;
-	//show_pixels_intensity_one_channel(img);
 	print_matrix(img);
 	cout << "\nkernel ============= " << endl;
-	//show_pixels_intensity_one_channel(ker);
 	print_matrix(ker);
 	cout << "\nresult ============= " << endl;
 	print_matrix(filtered_img);
-	//show_pixels_intensity_one_channel(filtered_img);
 
 	Mat median_blured_img;
 	medianBlur(img, median_blured_img, 3);
