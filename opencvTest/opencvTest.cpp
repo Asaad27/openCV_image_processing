@@ -311,3 +311,6 @@ int main()
 	return 0;
 }
 
+
+/* erosion : we take a structuring element(can be a 3x3 matrix for example), then we put it on each pixel of the picture, we keep only the elements
+p such that p && b is true, for every b in the structuring element */
