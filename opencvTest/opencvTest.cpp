@@ -122,16 +122,13 @@ void tp_ex1(const Mat &img)
 
 //create image from matrix
 
+
 Mat img_create(const vector<vector<int>> &matrix, bool kernel)
 {
 	const int rows = matrix.size();
 	const int cols = matrix[0].size();
 
-	int type;
-	if (!kernel)
-		type = CV_8UC1;
-	else
-		type = CV_32S;
+	int type = CV_32S;
 	
 	Mat img(rows, cols, type, Scalar(0));
 
@@ -139,10 +136,28 @@ Mat img_create(const vector<vector<int>> &matrix, bool kernel)
 	{
 		for (int j = 0; j < img.cols; ++j)
 		{
-			if (!kernel)
-				img.at<uchar>(i, j) = matrix[i][j];
-			else
 				img.at<int>(i, j) = matrix[i][j];
+		}
+	}
+
+
+	return img;
+}
+
+Mat img_create(const vector<vector<float>>& matrix)
+{
+	const int rows = matrix.size();
+	const int cols = matrix[0].size();
+
+	int type = CV_32F;
+
+	Mat img(rows, cols, type, Scalar(0));
+
+	for (int i = 0; i < img.rows; i++)
+	{
+		for (int j = 0; j < img.cols; ++j)
+		{
+				img.at<float>(i, j) = matrix[i][j];
 		}
 	}
 
@@ -182,12 +197,75 @@ Mat linear_filter(const Mat& img, const Mat& kernel, BorderTypes border)
 	Mat res;
 	img.copyTo(res);
 
+	rotate(kernel, kernel, ROTATE_90_COUNTERCLOCKWISE);
+	rotate(kernel, kernel, ROTATE_90_COUNTERCLOCKWISE);
 	filter2D(img, res, -1, kernel, Point(-1, -1), 0, border);
 
 	//show_pixels_intensity_one_channel(res);
 
 	return res;
 }
+
+Mat seuil_mat(Mat img, int seuil)
+{
+	Mat res;
+	img.copyTo(res);
+	for (int i = 0; i < res.rows; i++)
+	{
+		for (int j = 0; j < res.cols; ++j)
+		{
+			switch (res.depth())
+			{
+			case CV_8U:
+			{
+				if (res.at<uchar>(i, j) <= seuil)
+					res.at<uchar>(i, j) = 0;
+				break;
+			}
+			case CV_8S:
+			{
+				if (res.at<schar>(i, j) <= seuil)
+					res.at<schar>(i, j) = 0;
+				break;
+			}
+			case CV_16U:
+			{
+				if (res.at<ushort>(i, j) <= seuil)
+					res.at<ushort>(i, j) = 0;
+				break;
+			}
+			case CV_16S:
+			{
+				if (res.at<short>(i, j) <= seuil)
+					res.at<short>(i, j) = 0;
+				break;
+			}
+			case CV_32S:
+			{
+				if (res.at<int>(i, j) <= seuil)
+					res.at<int>(i, j) = 0;
+				break;
+			}
+			case CV_32F:
+			{
+				if (res.at<float>(i, j) <= seuil)
+					res.at<float>(i, j) = 0;
+				break;
+			}
+			case CV_64F:
+			{
+				if (res.at<double>(i, j) <= seuil)
+					res.at<double>(i, j) = 0;
+				break;
+			}
+
+			}
+		}
+	}
+
+	return res;
+}
+
 
 void print_matrix(const Mat &mat)
 {
@@ -236,6 +314,8 @@ void print_matrix(const Mat &mat)
 	} printf("\n");
 }
 
+
+
 int main()
 {
 	//Mat const img = imread("aces.jpg", IMREAD_COLOR);
@@ -259,10 +339,23 @@ int main()
 		{100, 200, 200, 200, 200}
 	};
 
-	vector<vector<int>> matrix2 = {
+	vector<vector<float>> matrix5 = {
+		{100, 100, 100, 100},
+		{100, 100, 150, 100},
+		{200, 100, 100, 100},
+		{200, 100, 100, 200},
+	};
+
+	vector<vector<float>> matrix2 = {
 		{1,2, 3},
 		{4, 5, 6},
 		{7, 8, 9}
+	};
+
+	vector<vector<int>> matrix4 = {
+		{50, 100, 200},
+		{50, 100, 200},
+		{50, 100, 200}
 	};
 	
 	vector<vector<int>> matrix3= {
@@ -272,40 +365,63 @@ int main()
 		{5, 5, 8, 10}
 	};
 
-	vector<vector<int>> kernel = {
+	vector<vector<float>> kernel = {
 		{-1,-2, -1},
 		{0, 0, 0},
 		{1, 2, 1}
 	};
 
-	vector<vector<int>> kernel2 = {
+	vector<vector<float>> median8 = {
+		{1/9, 1/9, 1/9},
+		{1 / 9, 1 / 9, 1 / 9},
+		{1 / 9, 1 / 9, 1 / 9}
+	};
+	vector<vector<float>> median4 = {
+		{0, 1.0/5, 0},
+		{1.0/5, 1.0/5, 1.0/5},
+		{0, 1.0/5, 0}
+	};
+
+	vector<vector<float>> laplace4 = {
+		{0, 1, 0},
+		{1, -4, 1},
+		{0, 1, 0}
+	};
+
+
+	vector<vector<float>> laplace8 = {
 		{1, 1, 1},
-		{1, 1, 1},
+		{1, -8, 1},
 		{1, 1, 1}
 	};
 
-	
-
-	const auto img = img_create(matrix3, false);
-	const auto ker = img_create(kernel2, true);
+	const auto img = img_create(matrix5);
+	const auto ker = img_create(laplace8);
 	
 	/*cout << luminance_one_channel(img) << endl;
 	cout << contrast_one_channel(img) << endl;*/
 
-	const auto filtered_img = linear_filter(img, ker, BORDER_CONSTANT);
+	Mat seuiled_mat = seuil_mat(img, 120);
+	const auto filtered_img = linear_filter(seuiled_mat, ker,	BORDER_CONSTANT);
 
-	cout << "\nimg ============= " << endl;
+	std::cout << "\nimg ============= " << endl;
 	print_matrix(img);
-	cout << "\nkernel ============= " << endl;
+	std::cout << "\nkernel ============= " << endl;
 	print_matrix(ker);
-	cout << "\nresult ============= " << endl;
+
+	std::cout << "\nmatrice seuille ============= " << endl;
+	print_matrix(seuiled_mat);
+	
+	std::cout << "\nresult ============= " << endl;
 	print_matrix(filtered_img);
 
-	Mat median_blured_img;
-	medianBlur(img, median_blured_img, 3);
+	//Mat median_blured_img;
+	//medianBlur(img, median_blured_img, 3);
 
-	cout << "\nmedian ============= " << endl;
-	print_matrix(median_blured_img);
+	//cout << "\nmedian ============= " << endl;
+	//print_matrix(median_blured_img);
+
+	
 
 	
 	return 0;
