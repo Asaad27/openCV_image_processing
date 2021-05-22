@@ -206,10 +206,11 @@ Mat linear_filter(const Mat& img, const Mat& kernel, BorderTypes border)
 	return res;
 }
 
-Mat seuil_mat(Mat img, int seuil)
+Mat seuil_mat(Mat img, Mat origin, int seuil)
 {
 	Mat res;
 	img.copyTo(res);
+	
 	for (int i = 0; i < res.rows; i++)
 	{
 		for (int j = 0; j < res.cols; ++j)
@@ -219,43 +220,43 @@ Mat seuil_mat(Mat img, int seuil)
 			case CV_8U:
 			{
 				if (res.at<uchar>(i, j) <= seuil)
-					res.at<uchar>(i, j) = 0;
+					res.at<uchar>(i, j) = origin.at<uchar>(i, j);
 				break;
 			}
 			case CV_8S:
 			{
 				if (res.at<schar>(i, j) <= seuil)
-					res.at<schar>(i, j) = 0;
+					res.at<schar>(i, j) = origin.at<schar>(i, j);
 				break;
 			}
 			case CV_16U:
 			{
 				if (res.at<ushort>(i, j) <= seuil)
-					res.at<ushort>(i, j) = 0;
+					res.at<ushort>(i, j) = origin.at<ushort>(i, j);
 				break;
 			}
 			case CV_16S:
 			{
 				if (res.at<short>(i, j) <= seuil)
-					res.at<short>(i, j) = 0;
+					res.at<short>(i, j) = origin.at<short>(i, j);
 				break;
 			}
 			case CV_32S:
 			{
 				if (res.at<int>(i, j) <= seuil)
-					res.at<int>(i, j) = 0;
+					res.at<int>(i, j) = origin.at<int>(i, j);
 				break;
 			}
 			case CV_32F:
 			{
 				if (res.at<float>(i, j) <= seuil)
-					res.at<float>(i, j) = 0;
+					res.at<float>(i, j) = origin.at<float>(i, j);
 				break;
 			}
 			case CV_64F:
 			{
 				if (res.at<double>(i, j) <= seuil)
-					res.at<double>(i, j) = 0;
+					res.at<double>(i, j) = origin.at<double>(i, j);
 				break;
 			}
 
@@ -401,20 +402,20 @@ int main()
 	/*cout << luminance_one_channel(img) << endl;
 	cout << contrast_one_channel(img) << endl;*/
 
-	Mat seuiled_mat = seuil_mat(img, 120);
-	const auto filtered_img = linear_filter(seuiled_mat, ker,	BORDER_CONSTANT);
+	
+	const auto filtered_img = linear_filter(img, ker,	BORDER_CONSTANT);
 
 	std::cout << "\nimg ============= " << endl;
 	print_matrix(img);
 	std::cout << "\nkernel ============= " << endl;
 	print_matrix(ker);
-
-	std::cout << "\nmatrice seuille ============= " << endl;
-	print_matrix(seuiled_mat);
 	
-	std::cout << "\nresult ============= " << endl;
+	std::cout << "\nfilter result ============= " << endl;
 	print_matrix(filtered_img);
 
+	std::cout << "\nthresholded result  ============= " << endl;
+	Mat seuiled_mat = seuil_mat(filtered_img, img, 120);
+	print_matrix(seuiled_mat);
 	//Mat median_blured_img;
 	//medianBlur(img, median_blured_img, 3);
 
