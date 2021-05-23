@@ -53,77 +53,8 @@ void show_pixels_intensity_one_channel(const Mat& img)
 	}
 }
 
-void tp_ex1(const Mat &img)
-{
-	namedWindow("calcHist Demo", WINDOW_NORMAL);
-	
-	Mat resized_img;
-
-	resize(img, resized_img, Size(5, 5));
-
-	//histogram with calcHist
-
-	vector<Mat> bgr_planes;
-	split(resized_img, bgr_planes);
-
-	auto hist_size = 256;
-	float range[] = { 0, 256 };
-	const float* hist_range = { range };
-	auto uniform = true, accumulate = false;
-
-	Mat b_hist, g_hist, r_hist;
-	calcHist(&bgr_planes[0], 1, 0, Mat(), b_hist, 1, &hist_size, &hist_range, uniform, accumulate);
-	
-	//show_info(b_hist);
-	show_pixels_intensity_one_channel(bgr_planes[0]);
-	
-	for (int i = 0; i < 256; ++i)
-	{
-		if (b_hist.at<float>(i))
-			cout << i << " : " << b_hist.at<float>(i) << endl;
-	}
-
-	//histogram manual calc
-	vector<int> my_b_hist(256, 0);
-	
-	for (int i = 0; i < bgr_planes[0].rows; ++i)
-	{
-		for (int j = 0; j < bgr_planes[0].cols; ++j)
-		{
-			int pixel = bgr_planes[0].at<uchar>(i, j);
-			my_b_hist[pixel]++;
-		}
-	}
-
-	for (int i = 0; i < 256; i++)
-		if (my_b_hist[i])
-			cout << i << " : " << my_b_hist[i] << endl;
-
-
-	//plot hist
-
-	int hist_w = 512, hist_h = 400;
-	int bin_w = cvRound((double)hist_w / hist_size);
-
-	Mat histImage(hist_h, hist_w, CV_8UC3, Scalar(0, 0, 0));
-	normalize(b_hist, b_hist, 0, histImage.rows, NORM_MINMAX, -1, Mat());
-
-	for (int i = 1; i < hist_size; i++)
-	{
-		line(histImage, Point(bin_w * (i - 1), hist_h - cvRound(b_hist.at<float>(i - 1))),
-			Point(bin_w * (i), hist_h - cvRound(b_hist.at<float>(i))),
-			Scalar(255, 0, 0), 2, 8, 0);
-	}
-	
-	imshow("calcHist Demo", histImage);
-	waitKey();
-	
-}
-
 //create image from matrix
-
-
-Mat img_create(const vector<vector<int>> &matrix, bool kernel)
+Mat img_create(const vector<vector<int>> &matrix)
 {
 	const int rows = matrix.size();
 	const int cols = matrix[0].size();
@@ -168,10 +99,11 @@ Mat img_create(const vector<vector<float>>& matrix)
 float luminance_one_channel(const Mat &img)
 {
 	float luminance = 0;
+
 	
 	for (int i = 0; i < img.rows; i++)
 		for (int j = 0; j < img.cols; ++j)
-			luminance += img.at<uchar>(i, j);
+			luminance += img.at<int>(i, j);
 
 	return luminance / (img.rows * img.cols * 1.0);
 }
@@ -183,7 +115,7 @@ float contrast_one_channel(const Mat& img)
 	
 	for (int i = 0; i < img.rows; i++)
 		for (int j = 0; j < img.cols; ++j)
-			variance += (img.at<uchar>(i, j) - luminance) * (img.at<uchar>(i, j) - luminance);
+			variance += (img.at<int>(i, j) - luminance) * (img.at<int>(i, j) - luminance);
 
 	//variance 
 	variance /= (img.rows * img.cols);
@@ -206,59 +138,56 @@ Mat linear_filter(const Mat& img, const Mat& kernel, BorderTypes border)
 	return res;
 }
 
-Mat seuil_mat(Mat img, Mat origin, int seuil)
+bool essentiallyEqual(float a, float b, float epsilon)
 {
-	Mat res;
-	img.copyTo(res);
+	return fabs(a - b) <= ((fabs(a) > fabs(b) ? fabs(b) : fabs(a)) * epsilon);
+}
+
+bool definitelyGreaterThan(float a, float b, float epsilon)
+{
+	return (a - b) > ((fabs(a) < fabs(b) ? fabs(b) : fabs(a)) * epsilon);
+}
+
+bool definitelyLessThan(float a, float b, float epsilon)
+{
+	return (b - a) > ((fabs(a) < fabs(b) ? fabs(b) : fabs(a)) * epsilon);
+}
+
+Mat seuil_mat(Mat img, Mat origin, float seuil)
+{
+	//img kernel moyennee
 	
-	for (int i = 0; i < res.rows; i++)
+	Mat res;
+	origin.copyTo(res);
+
+	for (int i = 0; i < img.rows; i++)
 	{
-		for (int j = 0; j < res.cols; ++j)
+		for (int j = 0; j < img.cols; ++j)
 		{
-			switch (res.depth())
+			switch (img.depth())
 			{
 			case CV_8U:
 			{
-				if (res.at<uchar>(i, j) <= seuil)
-					res.at<uchar>(i, j) = origin.at<uchar>(i, j);
+				if (img.at<uchar>(i, j) < seuil)
+					res.at<uchar>(i, j) = 0;
 				break;
 			}
-			case CV_8S:
-			{
-				if (res.at<schar>(i, j) <= seuil)
-					res.at<schar>(i, j) = origin.at<schar>(i, j);
-				break;
-			}
-			case CV_16U:
-			{
-				if (res.at<ushort>(i, j) <= seuil)
-					res.at<ushort>(i, j) = origin.at<ushort>(i, j);
-				break;
-			}
-			case CV_16S:
-			{
-				if (res.at<short>(i, j) <= seuil)
-					res.at<short>(i, j) = origin.at<short>(i, j);
-				break;
-			}
+
+
 			case CV_32S:
 			{
-				if (res.at<int>(i, j) <= seuil)
-					res.at<int>(i, j) = origin.at<int>(i, j);
+				if (img.at<int>(i, j) < seuil)
+					res.at<int>(i, j) = 0;
 				break;
 			}
 			case CV_32F:
 			{
-				if (res.at<float>(i, j) <= seuil)
-					res.at<float>(i, j) = origin.at<float>(i, j);
+
+				if (img.at<float>(i, j) <  seuil)
+					res.at<float>(i, j) = 0;
 				break;
 			}
-			case CV_64F:
-			{
-				if (res.at<double>(i, j) <= seuil)
-					res.at<double>(i, j) = origin.at<double>(i, j);
-				break;
-			}
+
 
 			}
 		}
@@ -267,7 +196,46 @@ Mat seuil_mat(Mat img, Mat origin, int seuil)
 	return res;
 }
 
+Mat fix_matrix(Mat img, int codage_interval)
+{
+	Mat mat;
+	img.copyTo(mat);
+	
+	for (int r = 0; r < mat.rows; r++) {
+		for (int c = 0; c < mat.cols; c++) {
 
+			switch (mat.depth())
+			{
+			case CV_8U:
+			{
+				while (mat.at<uchar>(r, c) < 0)
+					mat.at<uchar>(r, c) += codage_interval;
+				while (mat.at<uchar>(r, c) >= codage_interval)
+					mat.at<uchar>(r, c) -= codage_interval;
+				break;
+			}
+			case CV_32S:
+			{
+				while (mat.at<int>(r, c) < 0)
+					mat.at<int>(r, c) += codage_interval;
+				while (mat.at<int>(r, c) >= codage_interval)
+					mat.at<int>(r, c) -= codage_interval;
+				break;
+			}
+			case CV_32F:
+			{
+				while (mat.at<float>(r, c) < 0)
+					mat.at<float>(r, c) += codage_interval;
+				while (mat.at<float>(r, c) >= codage_interval)
+					mat.at<float>(r, c) -= codage_interval;
+				break;
+			}
+			}
+		} printf("\n");
+	} printf("\n");
+
+	return mat;
+}
 void print_matrix(const Mat &mat)
 {
 	for (int r = 0; r < mat.rows; r++) {
@@ -315,7 +283,167 @@ void print_matrix(const Mat &mat)
 	} printf("\n");
 }
 
+void tp_ex1(const Mat& img)
+{
+	namedWindow("calcHist Demo", WINDOW_NORMAL);
 
+	Mat resized_img;
+
+	resize(img, resized_img, Size(5, 5));
+
+	//histogram with calcHist
+
+	vector<Mat> bgr_planes;
+	split(resized_img, bgr_planes);
+
+	auto hist_size = 256;
+	float range[] = { 0, 256 };
+	const float* hist_range = { range };
+	auto uniform = true, accumulate = false;
+
+	Mat b_hist, g_hist, r_hist;
+	calcHist(&bgr_planes[0], 1, 0, Mat(), b_hist, 1, &hist_size, &hist_range, uniform, accumulate);
+
+	//show_info(b_hist);
+	show_pixels_intensity_one_channel(bgr_planes[0]);
+
+	for (int i = 0; i < 256; ++i)
+	{
+		if (b_hist.at<float>(i))
+			cout << i << " : " << b_hist.at<float>(i) << endl;
+	}
+
+	//histogram manual calc
+	vector<int> my_b_hist(256, 0);
+
+	for (int i = 0; i < bgr_planes[0].rows; ++i)
+	{
+		for (int j = 0; j < bgr_planes[0].cols; ++j)
+		{
+			int pixel = bgr_planes[0].at<uchar>(i, j);
+			my_b_hist[pixel]++;
+		}
+	}
+
+	for (int i = 0; i < 256; i++)
+		if (my_b_hist[i])
+			cout << i << " : " << my_b_hist[i] << endl;
+
+
+	//plot hist
+
+	int hist_w = 512, hist_h = 400;
+	int bin_w = cvRound((double)hist_w / hist_size);
+
+	Mat histImage(hist_h, hist_w, CV_8UC3, Scalar(0, 0, 0));
+	normalize(b_hist, b_hist, 0, histImage.rows, NORM_MINMAX, -1, Mat());
+
+	for (int i = 1; i < hist_size; i++)
+	{
+		line(histImage, Point(bin_w * (i - 1), hist_h - cvRound(b_hist.at<float>(i - 1))),
+			Point(bin_w * (i), hist_h - cvRound(b_hist.at<float>(i))),
+			Scalar(255, 0, 0), 2, 8, 0);
+	}
+
+	imshow("calcHist Demo", histImage);
+	waitKey();
+
+}
+
+void tp_ex2()
+{
+	vector<vector<int>> matrix =
+	{
+		{10, 10, 10, 10, 10, 10, 10, 10, 10, 10},
+		{10, 10, 10, 10, 10, 10, 10, 10, 10, 10},
+		{10, 10, 10, 50, 50, 50, 50, 50, 50, 50},
+		{10, 10, 10, 50, 50, 50, 50, 50, 50, 50},
+		{10, 10, 10, 100, 100, 100, 200, 200, 200, 200},
+		{10, 10, 10, 150, 100, 150, 200, 200, 200, 200},
+		{10, 10, 10, 150, 100, 150, 200, 200, 200, 200},
+		{10, 10, 10, 150, 150, 150, 200, 200, 200, 200},
+		{10, 10, 10, 10, 10, 10, 10, 10, 10, 10},
+		{10, 10, 10, 10, 10, 10, 10, 10, 10, 10},
+	};
+	Mat img = img_create(matrix);
+
+	printf("\nluminance : %f\n", luminance_one_channel(img));
+	printf("\ncontraste : %f\n", contrast_one_channel(img));
+
+	vector<int> my_b_hist(256, 0);
+
+	for (int i = 0; i < img.rows; ++i)
+	{
+		for (int j = 0; j < img.cols; ++j)
+		{
+			int pixel = img.at<int>(i, j);
+			my_b_hist[pixel]++;
+		}
+	}
+
+	for (int i = 0; i < 256; i++)
+		if (my_b_hist[i])
+			cout << i << " : " << my_b_hist[i] << endl;	
+}
+
+void tp2_ex2()
+{
+	vector<vector<float>> matrix = {
+		{10, 50, 50, 200},
+		{10, 50, 200, 200},
+		{10,  10, 200, 200},
+	};
+
+	vector<vector<float>> laplace8 = {
+		{1, 1, 1},
+		{1, -8, 1},
+		{1, 1, 1}
+	};
+
+	
+	auto ker = img_create(laplace8);
+	print_matrix(ker);
+	auto img = img_create(matrix);
+
+	auto laplace = linear_filter(img, ker, BORDER_CONSTANT);
+	
+	auto fixed_laplace = fix_matrix(laplace, 256);
+	std::cout << "laplace ====================\n";
+	print_matrix(laplace);
+	std::cout << "fixed laplace ====================\n";
+	print_matrix(fixed_laplace);
+
+
+
+	
+}
+
+void tp2_ex3()
+{
+	vector<vector<float>> matrix = {
+		{10, 50, 50, 200},
+		{10, 50, 200, 200},
+		{10,  10, 200, 200},
+	};
+
+	vector<vector<float>> moyen8 = {
+		{1.0 / 9, 1.0 / 9, 1.0 / 9},
+		{1.0 / 9, 1.0 / 9, 1.0 / 9},
+		{1.0 / 9, 1.0 / 9, 1.0 / 9}
+	};
+
+	Mat img = img_create(matrix);
+	Mat ker_moy = img_create(moyen8);
+
+	print_matrix(img);
+	auto res_moy = linear_filter(img, ker_moy, BORDER_CONSTANT);
+	auto tresholded_img = seuil_mat(res_moy, img, 80);
+
+
+	print_matrix(res_moy);
+	print_matrix(tresholded_img);
+
+}
 
 int main()
 {
@@ -333,7 +461,7 @@ int main()
 
 	//tp_ex1(img);
 
-	vector<vector<int>> matrix = {
+	/*vector<vector<int>> matrix = {
 		{100, 100, 50, 50, 200},
 		{100, 50, 50, 50, 200},
 		{100, 200, 200, 200, 200},
@@ -372,12 +500,12 @@ int main()
 		{1, 2, 1}
 	};
 
-	vector<vector<float>> median8 = {
-		{1/9, 1/9, 1/9},
-		{1 / 9, 1 / 9, 1 / 9},
-		{1 / 9, 1 / 9, 1 / 9}
+	vector<vector<float>> moyen8 = {
+		{1.0/9, 1.0/9, 1.0/9},
+		{1.0/9, 1.0/9, 1.0/9},
+		{1.0/9, 1.0/9, 1.0/9}
 	};
-	vector<vector<float>> median4 = {
+	vector<vector<float>> moyen4 = {
 		{0, 1.0/5, 0},
 		{1.0/5, 1.0/5, 1.0/5},
 		{0, 1.0/5, 0}
@@ -394,16 +522,17 @@ int main()
 		{1, 1, 1},
 		{1, -8, 1},
 		{1, 1, 1}
-	};
+	};*/
 
-	const auto img = img_create(matrix5);
-	const auto ker = img_create(laplace8);
+	/*const auto img = img_create(matrix5);
+	const auto ker = img_create(laplace8);*/
 	
 	/*cout << luminance_one_channel(img) << endl;
 	cout << contrast_one_channel(img) << endl;*/
 
+	//ANTB9 LFILTRE ELA KOLCHI PUIS ANBDL GHI S7AB SEUIL DYAL LMOYENNE D LUMINANCE
 	
-	const auto filtered_img = linear_filter(img, ker,	BORDER_CONSTANT);
+	/*const auto filtered_img = linear_filter(img, ker,	BORDER_CONSTANT);
 
 	std::cout << "\nimg ============= " << endl;
 	print_matrix(img);
@@ -415,19 +544,24 @@ int main()
 
 	std::cout << "\nthresholded result  ============= " << endl;
 	Mat seuiled_mat = seuil_mat(filtered_img, img, 120);
-	print_matrix(seuiled_mat);
+	print_matrix(seuiled_mat);*/
 	//Mat median_blured_img;
+	////SHOULD FIX PROBABLY
 	//medianBlur(img, median_blured_img, 3);
 
 	//cout << "\nmedian ============= " << endl;
 	//print_matrix(median_blured_img);
 
 	
+	//tp_ex2();
+	tp2_ex3();
 
-	
+
 	return 0;
 }
 
 
 /* erosion : we take a structuring element(can be a 3x3 matrix for example), then we put it on each pixel of the picture, we keep only the elements
 p such that p && b is true, for every b in the structuring element */
+
+//gain en continue est somme des elts du noyau
