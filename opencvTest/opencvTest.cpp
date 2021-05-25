@@ -2,6 +2,7 @@
 #include<opencv2/opencv.hpp>
 #include<iostream>
 #include <vector>
+#define PI  3.14159265358979323846
 
 using namespace std;
 using namespace cv;
@@ -445,6 +446,106 @@ void tp2_ex3()
 
 }
 
+
+
+
+Mat sobel_magnitude(Mat img, Mat imx, Mat imy)
+{
+	Mat res;
+	img.copyTo(res);
+	for (int i = 0; i < img.rows; ++i)
+	{
+		for (int j = 0; j < img.cols; ++j)
+		{
+			auto x = imx.at<float>(i, j);
+			auto y = imy.at<float>(i, j);
+			
+			res.at<float>(i, j) = sqrt(x*x + y*y);
+		}
+	}
+
+	return res;
+}
+
+Mat sobel_orientation(Mat img, Mat imx, Mat imy)
+{
+	Mat res;
+	img.copyTo(res);
+	
+	for (int i = 0; i < img.rows; ++i)
+	{
+		for (int j = 0; j < img.cols; ++j)
+		{
+			float x = imx.at<float>(i, j);
+			float y = imy.at<float>(i, j);
+
+			res.at<float>(i, j) = atan2(float(y), (float)x)/PI * 180;
+		}
+	}
+
+	return res;
+
+}
+
+void sobel()
+{
+	vector<vector<float>> matrix =
+	{
+		{62, 73, 83, 101, 110, 98},
+		{78, 88, 82, 120, 126, 110},
+		{81, 89, 94, 130, 127, 124},
+		{92, 78, 87, 141, 135, 119},
+		{88, 86, 103, 136, 133, 129},
+		{79, 97, 109, 123, 136, 142}
+	};
+
+	vector<vector<float>> gauss8 = {
+		{1 * 1.0 / 16 , 2 * 1.0 / 16, 1 * 1.0 / 16},
+		{2 * 1.0 / 16, 4 * 1.0 / 16, 2 * 1.0 / 16},
+		{1 * 1.0 / 16, 2 * 1.0 / 16, 1 * 1.0 / 16}
+	};
+
+	
+	auto ker = img_create(gauss8);
+	auto img = img_create(matrix);
+	Mat grad_x, grad_y;
+	Mat abs_grad_x, abs_grad_y;
+	
+	Sobel(img, grad_x, img.depth(), 1, 0, 3, 1, 0, BORDER_CONSTANT);
+	Sobel(img, grad_y, img.depth(), 0, 1, 3, 1, 0, BORDER_CONSTANT);
+
+	cout << "img===========" << endl;
+	print_matrix(img);
+
+	cout << "x===========" << endl;
+	print_matrix(grad_x);
+
+	cout << "y=============" << endl;
+	print_matrix(grad_y);
+
+	//auto ori = sobel_orientation(img, grad_x, grad_y);
+	//auto mag = sobel_magnitude(img, grad_x, grad_y);
+
+	Mat ori;
+	Mat mag;
+	cv::magnitude(grad_x, grad_y, mag);
+	cv::phase(grad_x, grad_y, ori, false);
+	
+	cout << "orientation===========" << endl;
+	print_matrix(ori);
+	cout << "magnitude===========" << endl;
+	print_matrix(mag);
+
+	Mat gaussed;
+	//GaussianBlur(img, gaussed, Size(3, 3), 3, 3);
+
+	gaussed = linear_filter(img, ker, BORDER_CONSTANT);
+	cout << "Gaussed I===========" << endl;
+	print_matrix(gaussed);
+	
+}
+
+
 int main()
 {
 	//Mat const img = imread("aces.jpg", IMREAD_COLOR);
@@ -461,7 +562,7 @@ int main()
 
 	//tp_ex1(img);
 
-	/*vector<vector<int>> matrix = {
+	vector<vector<int>> matrix = {
 		{100, 100, 50, 50, 200},
 		{100, 50, 50, 50, 200},
 		{100, 200, 200, 200, 200},
@@ -522,29 +623,36 @@ int main()
 		{1, 1, 1},
 		{1, -8, 1},
 		{1, 1, 1}
-	};*/
+	};
 
-	/*const auto img = img_create(matrix5);
-	const auto ker = img_create(laplace8);*/
+	vector<vector<float>> gauss8 = {
+		{1*1.0/16 , 2 * 1.0 / 16, 1 * 1.0 / 16},
+		{2 * 1.0 / 16, 4 * 1.0 / 16, 2 * 1.0 / 16},
+		{1 * 1.0 / 16, 2 * 1.0 / 16, 1 * 1.0 / 16}
+	};
+
+	const auto img = img_create(matrix2);
+	const auto ker = img_create(kernel);
 	
 	/*cout << luminance_one_channel(img) << endl;
 	cout << contrast_one_channel(img) << endl;*/
 
 	//ANTB9 LFILTRE ELA KOLCHI PUIS ANBDL GHI S7AB SEUIL DYAL LMOYENNE D LUMINANCE
 	
-	/*const auto filtered_img = linear_filter(img, ker,	BORDER_CONSTANT);
+	
 
-	std::cout << "\nimg ============= " << endl;
+	/*std::cout << "\nimg ============= " << endl;
 	print_matrix(img);
 	std::cout << "\nkernel ============= " << endl;
 	print_matrix(ker);
 	
+	const auto filtered_img = linear_filter(img, ker,	BORDER_CONSTANT);
 	std::cout << "\nfilter result ============= " << endl;
-	print_matrix(filtered_img);
+	print_matrix(filtered_img);*/
 
-	std::cout << "\nthresholded result  ============= " << endl;
-	Mat seuiled_mat = seuil_mat(filtered_img, img, 120);
-	print_matrix(seuiled_mat);*/
+	//std::cout << "\nthresholded result  ============= " << endl;
+	//Mat seuiled_mat = seuil_mat(filtered_img, img, 120);
+	//print_matrix(seuiled_mat);
 	//Mat median_blured_img;
 	////SHOULD FIX PROBABLY
 	//medianBlur(img, median_blured_img, 3);
@@ -553,10 +661,11 @@ int main()
 	//print_matrix(median_blured_img);
 
 	
-	//tp_ex2();
-	tp2_ex3();
+	//tp2_ex2();
+	//tp2_ex3();
 
-
+	sobel();
+	
 	return 0;
 }
 
